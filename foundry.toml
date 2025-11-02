@@ -1,0 +1,19 @@
+[profile.default]
+solc_version = "0.8.6"
+libs = ['lib']
+optimizer = false
+via_ir = false
+optimizer_runs = 420_000
+
+gas_reports = [
+    "Hashes",
+    "HashesDAO",
+    "Redemption"
+]
+
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts",
+]
+
+[fuzz]
+runs = 10_000

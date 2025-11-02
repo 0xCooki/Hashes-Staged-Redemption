@@ -1,0 +1,32 @@
+name: test
+
+on: [push]
+
+env:
+  FOUNDRY_PROFILE: ci
+  RPC_URL: ${{ secrets.RPC_URL }}
+
+jobs:
+  check:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+      
+      - name: Install Forge Dependencies
+        run: |
+          forge install
+          forge --version
+        id: install
+
+      - name: Run Forge tests
+        run: |
+          forge test -vvv
+        id: test
