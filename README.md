@@ -1,63 +1,108 @@
-# Contracts
-A [Foundry](https://book.getfoundry.sh/) repo for easy testing and integrations with Hashes DAO smart contracts
+# Hashes Staged Redemption Contract
 
-## Notes
-- Built with Openzeppelin v4.9.0
+The Redemption contract manages a three-stage redemption system that allows eligible Hashes NFT holders to redeem their tokens for ETH. During the first phase, the contract owner (or anyone) can send ETH to the contract. In the second and third phases, users with eligible Hashes NFTs can claim their share of the redemption amount. This redemption value in the second phase is determined by the ETH deposited divided by the number of eligible hashes NFTs. Whereas the redemption value in the final phase is set by the remaining ETH that was not redeemed in the second phase, divided by the number of redeemers. 
 
-## Roles
+Built with [Foundry](https://book.getfoundry.sh/) and Openzeppelin v4.9.0
 
-It is worth reviewing the roles specific to the Hashes Collection NFT_v1 ecosystem. The privelages are meant to balance security, usability with third-party platforms, and flexibility of operations management.
+### Contract Overview
 
--   Hashes DAO
-    -   The entity at the core of the infrastructure. Has general authority over most parts of the system except for some sensitive creator actions on collections (setting baseTokenURI, royalties, transfering creatorship). The full list of function permissions are documented below. This entity performs actions that are voted on by the DAO after a three day timelock has passed.
--   Factory Maintainer
-    -   An address designed to perform factory maintenance and interface with third-party sites; can be an EOA or multi-sig if this is supported on the relevant sites. The key attribute here is being the 'Owner' for all Collections contract (openzeppelin spec). This makes certain tasks feasible such as configuring royalties on OpenSea (off-chain), which wouldn't be possible for the DAO to perform directly. The initial factory maintainer will be set to the deployer of these contracts which will be DEX Labs.
--   Creator
-    -   This is initially set to the address which clones a Hashes Collections through the Factory method. Likely the artist or creator of the specific NFT project. After creating the collection, has some unique permissions such as baseTokenURI management, setting on-chain royalties, and ability to withdraw creator-owed funds.
--   Signature Block Address
-    -   This is an optional role that can be used with the NFT contract. The concept of a signature block is taken from traditional legal documents. It refers to the text surrounding a signature which gives that signature context and provides additional information. In this context, it means that the creator has provided a place where a particular address can 'sign off' on the contract and establish provenance. This can be useful for famous NFT artist to prove that this contract represents their work, especially since they may not be cloning the Contract or entering the metadata.
+The Redemption contract operates in three distinct stages:
 
-## CollectionFactory
+1. **PreRedemption Stage**: Redemptions disabled, ETH deposits enabled
+2. **Redemption Stage**: First redemption enabled, ETH deposits enabled
+3. **PostRedemption Stage**: Second redemption enabled, ETH deposits disabled
 
-|                             | Hashes DAO | Factory Maintainer | Creator | Any User |
-| --------------------------- | ---------- | ------------------ | ------- | -------- |
-| setFactoryMaintainerAddress | ✓          | ✓                  |         |          |
-| addImplementationAddress    | ✓          | ✓                  | ✓       | ✓        |
-| removeImplementationAddress | ✓          | ✓                  |         |          |
-| createEcosystemSettings     | ✓          | ✓                  |         |          |
-| updateEcosystemSettings     | ✓          |                    |         |          |
-| createCollection            | ✓          | ✓                  | ✓       | ✓        |
-| removeCollection            | ✓          | ✓                  |         |          |
-|                             |            |                    |         |          |
-| openzeppelin 'Owner'        | ✓          |                    |         |          |
-| transferOwnership           | ✓          |                    |         |          |
+### Key Contract Parameters
 
-Notes:
+- **INITIAL_ELIGIBLE_HASHES_TOTAL**: 579 - The initial number of Hashes tokens eligible for redemption
+- **MIN_REDEMPTION_TIME**: 180 days - Minimum time required before moving to PostRedemption stage
+- **Eligibility Criteria**: A Hashes token is eligible if:
+  - Token ID is less than 1000
+  - Token is not in the excluded list (set during contract deployment)
 
--   The factory maintainer is able to transfer its role to another address. While this could allow for the unlikely case of a bad actor paying off the current factory maintainer to gain access, it was decided to do this for better ops management.
--   Anyone can add a new implementation address to the Factory (cloneable or standalone). This was done to encourage more contributors to the Factory. To combat spammers or bad actors, the factory maintainer has the ability to remove implementation contracts. The same create/delete permissioning pattern holds for individual collections (ie clones) created through the Factory.
--   New ecosystem settings can be created by either the factory maintainer or HashesDAO. This was done to more easily allow for the bootstrapping of new ecosystems. However, only the DAO can pass proposals to update ecosystem settings. The idea here is that the impact for these changes will be greater on already established ecosystems (setting mint fee percent, royalty percent etc.)
+### Contract Functions
 
-## CollectionNFTCloneableV1
+| Function | Owner | Any User | Description |
+|----------|-------|----------|-------------|
+| deposit() | | ✓ | Deposit ETH into the contract (PreRedemption and Redemption stages only) |
+| redeem() | | ✓ | Redeem eligible Hashes tokens for ETH |
+| setRedemptionStage() | ✓ | | Move contract from PreRedemption to Redemption stage |
+| setPostRedemptionStage() | ✓ | | Move contract from Redemption to PostRedemption stage (requires 180 days minimum) |
+| recoverERC20() | ✓ | | Recover ERC20 tokens sent to the contract |
+| isHashEligibleForRedemption() | | ✓ | Check if a specific token ID is eligible for redemption |
 
-|                          | Hashes DAO | Factory Maintainer | Creator | Any User | Signature Block Address |
-| ------------------------ | ---------- | ------------------ | ------- | -------- | ----------------------- |
-| initialize               |            |                    | ✓       |          |                         |
-| mint                     | ✓          | ✓                  | ✓       | ✓        |                         |
-| setBaseTokenURI          |            |                    | ✓       |          |                         |
-| setRoyaltyBps            |            |                    | ✓       |          |                         |
-| transferCreator          |            |                    | ✓       |          |                         |
-| withdraw                 | ✓          | ✓                  | ✓       | ✓        |                         |
-| burn (owner/approved)    | ✓          | ✓                  | ✓       | ✓        |                         |
-| setSignatureBlockAddress |            |                    | ✓       |          |                         |
-| completeSignatureBlock   |            |                    |         |          | ✓                       |
-|                          |            |                    |         |          |                         |
-| openzeppelin 'Owner'     |            | ✓                  |         |          |                         |
-| transferOwnership        | ✓          | ✓                  |         |          |                         |
+### User Redemption Journey
 
-Notes:
+#### Stage 1: PreRedemption
 
--   Initialize is automatically called through the creation of a new clone via the createCollection method in the Factory. So in essence, it is the creator that is triggering this call and passing through the NFT settings.
--   Only the creator can update the baseTokenURI and royaltyBps for their collection, as well as transfer this role to others. Hopefully this helps provide peace of mind for creators to build on the platform and have the most important settings locked into place.
--   The openzeppelin 'Owner' _must_ be the factory maintainer because of how royalties are configured on third-party platforms such as OpenSea. In order to enforce a HashesDAO royalty fee percent, all royalties are sent to the cloned collection contract, where additional logic separates royalties owed to the creator as well as HashesDAO. The Owner has permission to configure the royalty address to be the cloned contract address on OpenSea. If this was the 'Creator' role, they could just switch the royalty address to their own address and bypass the Hashes Collecton fee. OpenSea has plans to support ERC2981 eventually for on-chain royalties, but we need to use this workaround in the interim.
--   While the Owner of the contract is the factory maintainer address, HashesDAO also has the ability to transfer ownership of collections. This was done as a backup in case the factory maintainer becomes a bad actor or the address is lost. There is some operational security added with DEX Labs controlling this address, since the entity is implicitly staking its reputation.
+**What Happens:**
+- The contract is deployed and starts in the PreRedemption stage
+- Anyone can deposit ETH into the contract using the `deposit()` function or by sending ETH directly
+- Deposits are tracked via events but no redemptions are allowed yet
+- The owner can move to the Redemption stage at any time by calling `setRedemptionStage()`
+
+**User Actions:**
+- Users can deposit ETH if they wish to contribute to the redemption pool
+- Users should verify their Hashes tokens are eligible using `isHashEligibleForRedemption(tokenId)`
+- Users must wait for the owner to transition to the Redemption stage
+
+#### Stage 2: Redemption
+
+**What Happens:**
+- When the owner calls `setRedemptionStage()`, the contract:
+  - Calculates `redemptionPerHash = contractBalance / 579` (initial eligible total)
+  - Records the current timestamp for the minimum redemption period
+  - Allows users to redeem their eligible Hashes tokens
+- **Continued Deposits**: The owner or anyone else can continue to deposit ETH into the contract during the Redemption stage using the `deposit()` function or by sending ETH directly. These additional deposits increase the contract balance, but the `redemptionPerHash` value is fixed at the start of the Redemption stage and does not change until PostRedemption. This means all redemptions during Stage 2 use the same fixed rate, regardless of when additional deposits are made. The additional ETH will be available for distribution in the PostRedemption stage.
+
+**User Actions:**
+1. Call `redeem()` function while holding eligible Hashes tokens
+2. The contract will:
+   - Iterate through all tokens owned by the user
+   - Check each token's eligibility (tokenId < 1000 and not excluded)
+   - Mark eligible tokens as redeemed (preventing double redemption)
+   - Count the number of eligible tokens redeemed
+   - Transfer ETH: `eligibleTokensCount × redemptionPerHash`
+   - Record the count in `amountRedeemed[user]` for PostRedemption claims
+
+**Example:**
+- Contract has 100 ETH deposited
+- `redemptionPerHash = 100 ETH / 579 = ~0.1729 ETH per token`
+- User redeems 5 eligible tokens
+- User receives: `5 × 0.1729 ETH = ~0.8645 ETH`
+- `amountRedeemed[user] = 5` (stored for PostRedemption stage)
+
+**Important Notes:**
+- Users can call `redeem()` multiple times during this stage
+- Each call processes all eligible tokens owned by the user at that moment
+- Once a token is redeemed, it cannot be redeemed again
+- Users who don't redeem during this stage cannot claim in PostRedemption
+- **Additional ETH Deposits**: The owner or any other party can send additional ETH to the contract at any time during the Redemption stage. These deposits do not change the `redemptionPerHash` rate for Stage 2 redemptions (which is fixed at stage start), but they increase the total pool that will be available for PostRedemption distribution.
+
+#### Stage 3: PostRedemption
+
+**What Happens:**
+- After at least 180 days have passed since the Redemption stage was set, the owner can call `setPostRedemptionStage()`
+- The contract recalculates `redemptionPerHash = contractBalance / totalNumberRedeemed`
+  - This redistributes any remaining ETH (from tokens not redeemed) to users who did redeem
+  - If no tokens were redeemed, this will revert (division by zero)
+- Users who redeemed in Stage 2 can claim additional ETH
+
+**User Actions:**
+1. Users who redeemed tokens in Stage 2 can call `redeem()` again
+2. The contract will:
+   - Retrieve `amountRedeemed[user]` (the count of tokens they redeemed in Stage 2)
+   - Calculate payout: `amountRedeemed[user] × redemptionPerHash`
+   - Transfer the ETH to the user
+   - Reset `amountRedeemed[user]` to 0 (preventing double claims)
+
+**Example:**
+- 400 tokens were redeemed in Stage 2 (out of 579 eligible)
+- Contract has 20 ETH remaining
+- `redemptionPerHash = 20 ETH / 400 = 0.05 ETH per token`
+- User who redeemed 5 tokens in Stage 2 receives: `5 × 0.05 ETH = 0.25 ETH`
+
+**Important Notes:**
+- Only users who redeemed in Stage 2 can claim in PostRedemption
+- Users who didn't redeem in Stage 2 cannot claim, even if they hold eligible tokens
+- Each user can only claim once in PostRedemption stage

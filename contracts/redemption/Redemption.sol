@@ -11,9 +11,11 @@ import {IRedemption} from "contracts/redemption/IRedemption.sol";
 
 /// @title Redemption
 /// @notice Manages the redemption of Hashes tokens for ETH
-/// @dev This contract implements a three-stage redemption system for Hashes tokens.
-/// Users can deposit ETH during PreRedemption stage, redeem their eligible Hashes tokens
-/// during Redemption stage, and claim remaining redemptions during PostRedemption stage.
+/// @dev This contract implements a three-stage redemption system for Hashes NFTs.
+/// Anyone can deposit ETH during the PreRedemption and Redemption stages. Users can redeem their
+/// eligible Hashes during the Redemption stage, and claim a share of the remaining redemption
+/// amount during the PostRedemption stage. Any user who does not claim during the Redemption stage
+/// will not be able to claim during the PostRedemption stage, even with an eligible Hash.
 contract Redemption is IRedemption, Ownable, ReentrancyGuard {
     using BitMaps for BitMaps.BitMap;
 
@@ -70,7 +72,6 @@ contract Redemption is IRedemption, Ownable, ReentrancyGuard {
     }
 
     /// @notice Internal function to handle ETH deposits
-    /// @dev Reverts if called during PostRedemption stage and emits Deposit event
     /// @custom:throws WrongStage if called during PostRedemption stage
     function _deposit() internal nonReentrant {
         if (stage == Stages.PostRedemption) revert WrongStage();

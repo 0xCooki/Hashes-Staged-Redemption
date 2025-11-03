@@ -50,22 +50,27 @@ interface IRedemption {
     /// @notice Allows users to redeem their eligible Hashes tokens for ETH
     /// @dev Behavior depends on current stage:
     /// - PreRedemption: Reverts with WrongStage
-    /// - Redemption: Claims first redemption amount
-    /// - PostRedemption: Claims second redemption amount
+    /// - Redemption: Iterates through all tokens owned by the caller, marks eligible tokens
+    ///   as redeemed, increments counters, and transfers ETH based on number of eligible tokens
+    ///   found multiplied by redemptionPerHash
+    /// - PostRedemption: Transfers ETH based on amountRedeemed[msg.sender] multiplied by
+    ///   the recalculated redemptionPerHash, then resets amountRedeemed[msg.sender] to zero
     /// @custom:throws WrongStage if called during PreRedemption stage
     /// @custom:throws TransferFailed if ETH transfer fails
     function redeem() external;
 
     /// @notice Sets the contract to Redemption stage
-    /// @dev Can only be called by owner during PreRedemption stage
-    /// Calculates redemptionPerHash based on current contract balance
+    /// @dev Can only be called by owner during PreRedemption stage.
+    /// Calculates redemptionPerHash by dividing the current contract balance by INITIAL_ELIGIBLE_HASHES_TOTAL (579).
+    /// Sets redemptionSetTime to block.timestamp.
     /// @custom:throws WrongStage if not in PreRedemption stage
     /// @custom:throws OwnableUnauthorizedAccount if called by non-owner
     function setRedemptionStage() external;
 
     /// @notice Sets the contract to PostRedemption stage
-    /// @dev Can only be called by owner during Redemption stage after minimum time has elapsed
-    /// Recalculates redemptionPerHash based on actual redeemed tokens
+    /// @dev Can only be called by owner during Redemption stage after minimum time has elapsed.
+    /// Recalculates redemptionPerHash by dividing the current contract balance by totalNumberRedeemed.
+    /// @custom:throws Revert if totalNumberRedeemed is zero
     /// @custom:throws WrongStage if not in Redemption stage
     /// @custom:throws MinRedemptionTime if minimum redemption time has not elapsed
     /// @custom:throws OwnableUnauthorizedAccount if called by non-owner
@@ -80,7 +85,6 @@ interface IRedemption {
     /// @notice Checks if a specific Hashes token is eligible for redemption
     /// @dev A token is eligible if:
     /// - Token ID is less than 1000
-    /// - Token is not deactivated
     /// - Token is not in the excluded list
     /// @param _tokenId The token ID to check
     /// @return bool True if the token is eligible for redemption, false otherwise
@@ -91,7 +95,7 @@ interface IRedemption {
     function MIN_REDEMPTION_TIME() external view returns (uint256);
 
     /// @notice Returns the total number of initially eligible Hashes tokens for redemption
-    /// @return uint256 The total number of eligible tokens (520)
+    /// @return uint256 The total number of eligible tokens (579)
     function INITIAL_ELIGIBLE_HASHES_TOTAL() external view returns (uint256);
 
     /// @notice Returns the Hashes NFT contract address
