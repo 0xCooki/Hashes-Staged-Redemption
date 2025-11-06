@@ -7,7 +7,8 @@ import {Hashes} from "contracts/Hashes.sol";
 /// @title Hashes Redemption Interface
 /// @notice This interface defines the contract for managing the redemption of Hashes tokens
 /// for ETH. The redemption process has three stages: PreRedemption (deposits only),
-/// Redemption (active redemption period), and PostRedemption (final redemption period).
+/// Redemption (active redemption period), and PostRedemption (final redemption period). When
+/// users redeem their eligible Hashes NFTs, the NFTs are transferred from the user to the contract.
 interface IRedemption {
     /// @notice Enumeration of redemption stages
     /// @param PreRedemption Initial stage where only ETH deposits are accepted
@@ -36,6 +37,7 @@ interface IRedemption {
     /// @notice Emitted when a user redeems their Hashes tokens
     /// @param _user The address of the user who redeemed tokens
     /// @param _amount The amount of ETH received from redemption
+    /// @dev The eligible Hashes NFTs are transferred from the user to the contract
     event Redeemed(address _user, uint256 _amount);
 
     /// @notice Emitted when the redemption stage is changed
@@ -50,9 +52,11 @@ interface IRedemption {
     /// @notice Allows users to redeem their eligible Hashes tokens for ETH
     /// @dev Behavior depends on current stage:
     /// - PreRedemption: Reverts with WrongStage
-    /// - Redemption: Iterates through all tokens owned by the caller, marks eligible tokens
-    ///   as redeemed, increments counters, and transfers ETH based on number of eligible tokens
-    ///   found multiplied by redemptionPerHash
+    /// - Redemption: Iterates through all tokens owned by the caller, transfers eligible Hashes NFTs
+    ///   from the caller to the contract, marks eligible tokens as redeemed, increments counters,
+    ///   and transfers ETH based on number of eligible tokens found multiplied by redemptionPerHash.
+    ///   Users must first call setApprovalForAll on the Hashes contract to allow the redemption
+    ///   contract to transfer their NFTs.
     /// - PostRedemption: Transfers ETH based on amountRedeemed[msg.sender] multiplied by
     ///   the recalculated redemptionPerHash, then resets amountRedeemed[msg.sender] to zero
     /// @custom:throws WrongStage if called during PreRedemption stage

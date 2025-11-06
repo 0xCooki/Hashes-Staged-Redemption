@@ -86,12 +86,16 @@ contract Redemption is IRedemption, Ownable, ReentrancyGuard {
             uint256 tokenId;
             uint256 counter;
             uint256 balance = HASHES.balanceOf(msg.sender);
+            uint256[] memory tokenIds = new uint256[](balance);
             for (uint256 i; i < balance; i++) {
                 tokenId = HASHES.tokenOfOwnerByIndex(msg.sender, i);
                 if (isHashEligibleForRedemption(tokenId)) {
                     _excludedHashIDs.set(tokenId);
-                    counter++;
+                    tokenIds[counter++] = tokenId;
                 }
+            }
+            for (uint256 j; j < counter; j++) {
+                HASHES.transferFrom(msg.sender, address(this), tokenIds[j]);
             }
             totalNumberRedeemed += counter;
             amountRedeemed[msg.sender] += counter;

@@ -48,6 +48,12 @@ contract RedemptionForkTest is Test, DeployRedemption {
         vm.expectEmit(true, true, true, true);
         emit StageSet(IRedemption.Stages.PreRedemption);
         run();
+
+        // Grants approvals for all NFTs
+        vm.prank(redemptionMultisig);
+        hashes.setApprovalForAll(address(redemption), true);
+        vm.prank(dexLabs);
+        hashes.setApprovalForAll(address(redemption), true);
     }
 
     /// PreRedemption ///
@@ -277,6 +283,9 @@ contract RedemptionForkTest is Test, DeployRedemption {
         hashes.transferFrom(dexLabs, reverter, 4);
         vm.prank(redemptionMultisig);
         redemption.setRedemptionStage();
+
+        vm.prank(reverter);
+        hashes.setApprovalForAll(address(redemption), true);
 
         // Revert at initial redeem
         vm.expectRevert(IRedemption.TransferFailed.selector);

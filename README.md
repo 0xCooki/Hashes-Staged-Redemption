@@ -1,6 +1,6 @@
 # Hashes Staged Redemption Contract
 
-The Redemption contract manages a three-stage redemption system that allows eligible Hashes NFT holders to redeem their tokens for ETH. During the first phase, the contract owner (or anyone) can send ETH to the contract. In the second and third phases, users with eligible Hashes NFTs can claim their share of the redemption amount. This redemption value in the second phase is determined by the ETH deposited divided by the number of eligible hashes NFTs. Whereas the redemption value in the final phase is set by the remaining ETH that was not redeemed in the second phase, divided by the number of redeemers. 
+The Redemption contract manages a three-stage redemption system that allows eligible Hashes NFT holders to redeem their tokens for ETH. During the first phase, the contract owner (or anyone) can send ETH to the contract. In the second and third phases, users with eligible Hashes NFTs can claim their share of the redemption amount. When users redeem their eligible Hashes NFTs, they are transferred from the user to the redemption contract. The redemption value in the second phase is determined by the ETH deposited divided by the number of eligible hashes NFTs. Whereas the redemption value in the final phase is set by the remaining ETH that was not redeemed in the second phase, divided by the number of redeemers. 
 
 Built with [Foundry](https://book.getfoundry.sh/) and Openzeppelin v4.9.0
 
@@ -56,10 +56,12 @@ The Redemption contract operates in three distinct stages:
 - **Continued Deposits**: The owner or anyone else can continue to deposit ETH into the contract during the Redemption stage using the `deposit()` function or by sending ETH directly. These additional deposits increase the contract balance, but the `redemptionPerHash` value is fixed at the start of the Redemption stage and does not change until PostRedemption. This means all redemptions during Stage 2 use the same fixed rate, regardless of when additional deposits are made. The additional ETH will be available for distribution in the PostRedemption stage.
 
 **User Actions:**
-1. Call `redeem()` function while holding eligible Hashes tokens
-2. The contract will:
+1. Set approval for the redemption contract to transfer NFTs by calling `setApprovalForAll(redemptionContractAddress, true)` on the Hashes contract
+2. Call `redeem()` function while holding eligible Hashes tokens
+3. The contract will:
    - Iterate through all tokens owned by the user
    - Check each token's eligibility (tokenId < 1000 and not excluded)
+   - Transfer eligible Hashes NFTs from the user to the contract
    - Mark eligible tokens as redeemed (preventing double redemption)
    - Count the number of eligible tokens redeemed
    - Transfer ETH: `eligibleTokensCount × redemptionPerHash`
@@ -75,7 +77,7 @@ The Redemption contract operates in three distinct stages:
 **Important Notes:**
 - Users can call `redeem()` multiple times during this stage
 - Each call processes all eligible tokens owned by the user at that moment
-- Once a token is redeemed, it cannot be redeemed again
+- Once a token is redeemed, it is transferred to the contract and cannot be redeemed again
 - Users who don't redeem during this stage cannot claim in PostRedemption
 - **Additional ETH Deposits**: The owner or any other party can send additional ETH to the contract at any time during the Redemption stage. These deposits do not change the `redemptionPerHash` rate for Stage 2 redemptions (which is fixed at stage start), but they increase the total pool that will be available for PostRedemption distribution.
 
